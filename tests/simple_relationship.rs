@@ -1,9 +1,10 @@
 use fusion::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 #[test]
+#[allow(clippy::blacklisted_name)]
 fn simple_relationship() {
 	let data = PathBuf::from("tests/simple_relationship");
 	let resource = Resource::new(&data);
@@ -48,16 +49,6 @@ impl Resource {
 			.collect();
 		let root = root.to_path_buf();
 		Self { map, root }
-	}
-
-	fn relations(&self) -> HashMap<&Index, Vec<Relation>> {
-		let idx_mapper = |idx| {
-			let file = self.file(idx)?;
-			let result = (idx, file.relation());
-			Some(result)
-		};
-
-		self.map.iter().filter_map(idx_mapper).collect()
 	}
 }
 
