@@ -1,23 +1,22 @@
-use std::path::{PathBuf, Path};
+use std::io::{Error, ErrorKind, Result};
+use std::path::Path;
+use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Index {
-	path: PathBuf
+#[derive(Debug, Error)]
+pub enum UtilError {
+	#[error("Cannot find parent of this path")]
+	Parent,
+	#[error("Cannot resolve filename")]
+	FileName
 }
 
-impl Index {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-		let path = path.into();
-		Self { path }
-	}
-
-	pub fn path(&self) -> &Path {
-		&self.path
-	}
+pub fn parent(path: &Path) -> Result<&Path> {
+	path.parent()
+		.ok_or_else(|| Error::new(ErrorKind::Other, UtilError::Parent))
 }
 
-impl From<&Path> for Index {
-	fn from(path: &Path) -> Self {
-		Self::new(path)
-	}
+pub fn file_stem(path: &Path) -> Result<&str> {
+	path.file_stem()
+		.and_then(|s| s.to_str())
+		.ok_or_else(|| Error::new(ErrorKind::Other, UtilError::FileName))
 }
