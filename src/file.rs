@@ -4,7 +4,7 @@ use std::path::Path;
 pub trait File {
 	fn relation(&self) -> Vec<Relation>;
 
-	/// Relative path to the given file
+	/// Absolute path to the given file
 	fn path(&self) -> &Path;
 }
 
