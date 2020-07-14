@@ -5,7 +5,7 @@ type Composite = fusion::prelude::Composite<Error>;
 enum Error {
 	PackMeta,
 	DataFolder,
-	TickingTags
+	TickingTags,
 }
 
 fn pack_meta() -> Criteria {

@@ -1,8 +1,23 @@
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Namespace(String);
+use std::path::{PathBuf, Path};
 
-impl Namespace {
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Index {
+	path: PathBuf
+}
+
+impl Index {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+		let path = path.into();
+		Self { path }
+	}
+
+	pub fn path(&self) -> &Path {
+		&self.path
+	}
+}
+
+impl From<&Path> for Index {
+	fn from(path: &Path) -> Self {
+		Self::new(path)
+	}
 }
