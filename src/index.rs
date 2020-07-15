@@ -52,7 +52,7 @@ impl Index {
 	/// # Error
 	/// This function can fail in the following errors:
 	/// - Logical parent does not exists. (Path like `./` does not have logical parent)
-	/// - Unable to get file stem of this path. (Check [Path::file_stem()](std::path::Path::file_stem))
+	/// - Unable to get file stem of this path. (Check [Path::file_stem()](std::path::Path#method.file_stem))
 	pub fn rename<F>(&self, format: F) -> Result<Self, Error>
 	where
 		F: Fn(&Pid, &str) -> String,
