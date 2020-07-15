@@ -61,10 +61,12 @@ where
 		P: Into<PathBuf>,
 	{
 		let exporter = self.exporter(path);
+		let eid = self.output_id();
 		let mapping = self.mapping()?;
 
 		for (index, strategy) in self.indexes() {
-			if let Some(file) = exporter.file(index) {
+			let eindex = index.with_pid(eid);
+			if let Some(file) = exporter.file(&eindex) {
 				let file = mapping.apply_mapping(file);
 				match strategy {
 					Strategy::Replace => exporter.add(file, index)?,
