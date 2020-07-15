@@ -3,7 +3,7 @@ name = "fusion"
 version = "0.1.0"
 authors = ["oOBoomberOo <boomberisalreadytaken@gmail.com>"]
 edition = "2018"
-
+description = "A general purpose project merger library"
 readme = "./readme.md"
 repository = "https://github.com/oOBoomberOo/fusion"
 license = "MIT"
