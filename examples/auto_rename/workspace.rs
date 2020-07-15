@@ -1,14 +1,24 @@
+use super::asset::Asset;
 use super::project::Project;
 use anyhow::Result;
 use fusion::prelude::Pid;
-use std::path::PathBuf;
+use fusion::prelude::*;
+use glob::Pattern;
+use lazy_static::lazy_static;
+use std::path::{Path, PathBuf};
+
+lazy_static! {
+	static ref PACK_META: Pattern = Pattern::new("pack.mcmeta").unwrap();
+	static ref RENAMEABLE: Pattern = Pattern::new("**/*.json").unwrap();
+	static ref MERGEABLE: Pattern = Pattern::new("**/*.txt").unwrap();
+}
 
 pub struct Workspace {
 	projects: Vec<Project>,
 }
 
 impl Workspace {
-	pub fn from_directory(root: impl Into<PathBuf>) -> Result<(Self, Pid)> {
+	pub fn from_directory(root: impl Into<PathBuf>) -> Result<Self> {
 		let root = root.into();
 		let projects = root
 			.read_dir()?
@@ -18,12 +28,7 @@ impl Workspace {
 			.collect();
 
 		let result = Self { projects };
-		let exporter_id = result.latest_pid();
-		Ok((result, exporter_id))
-	}
-
-	pub fn latest_pid(&self) -> Pid {
-		Pid::new(self.projects.len())
+		Ok(result)
 	}
 }
 
@@ -40,7 +45,25 @@ fn create_project((i, path): (usize, PathBuf)) -> Project {
 
 impl fusion::workspace::Workspace for Workspace {
 	type Project = Project;
+	type File = Asset;
+
 	fn projects(&self) -> &[Self::Project] {
 		&self.projects
+	}
+
+	fn file(path: &Path, pid: Pid) -> Option<Self::File> {
+		Asset::new(path, pid).ok()
+	}
+
+	fn strategy(&self, index: &Index) -> Strategy {
+		let path = index.path();
+
+		if PACK_META.matches_path(path) {
+			Strategy::Replace
+		} else if RENAMEABLE.matches_path(path) {
+			Strategy::Rename
+		} else {
+			Strategy::Merge
+		}
 	}
 }

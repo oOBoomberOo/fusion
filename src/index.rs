@@ -1,6 +1,5 @@
-use super::prelude::{File, Pid, Relation};
-use super::utils;
-use log::*;
+use super::fs;
+use super::prelude::{Error, File, Pid, Relation};
 use std::collections::hash_set::{IntoIter, Iter};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -54,13 +53,13 @@ impl Index {
 	/// This function can fail in the following errors:
 	/// - Logical parent does not exists. (Path like `./` does not have logical parent)
 	/// - Unable to get file stem of this path. (Check [Path::file_stem()](/std/path/struct.Path.html#file_stem))
-	pub fn rename<F>(&self, format: F) -> std::io::Result<Self>
+	pub fn rename<F>(&self, format: F) -> Result<Self, Error>
 	where
-		F: Fn(Pid, &str) -> String,
+		F: Fn(&Pid, &str) -> String,
 	{
 		let path = self.path();
-		let parent = utils::parent(path)?;
-		let stem = utils::file_stem(path).map(|name| format(self.pid, name))?;
+		let parent = fs::parent(path)?;
+		let stem = fs::file_stem(path).map(|name| format(&self.pid, name))?;
 
 		let mut new_path = parent.join(stem);
 		if let Some(extension) = self.path.extension() {
@@ -77,9 +76,8 @@ impl Index {
 	}
 
 	/// Change Pid of the Index
-	pub fn with_pid(mut self, pid: Pid) -> Self {
-		self.pid = pid;
-		self
+	pub fn with_pid(&self, pid: Pid) -> Self {
+		Self::new(pid, &self.path)
 	}
 }
 
@@ -112,6 +110,27 @@ impl<'a> IndexList<'a> {
 		Self { indexes }
 	}
 
+	/// Get index loosely base on the relative path similar to [IndexList::get()](#get) but the result index **must** not containt he same Pid as the given index.
+	///
+	/// ```
+	/// # use fusion::prelude::{IndexList, Index, Pid};
+	/// let alpha = Pid::new(0);
+	/// let beta = Pid::new(1);
+	///
+	/// let foo = Index::new(alpha, "example/path");
+	/// let bar = Index::new(beta, "example/path");
+	///
+	/// let mut list = IndexList::default();
+	/// list.add(&foo);
+	///
+	/// assert_eq!(list.get_different_pid(&foo), None);
+	/// assert_eq!(list.get_different_pid(&bar), Some(&Index::new(alpha, "example/path")));
+	/// ```
+	pub fn get_different_pid(&self, index: &Index) -> Option<&Index> {
+		self.indexes()
+			.find(|i| i.is_similar(index) && i.pid() != index.pid())
+	}
+
 	/// Get index loosely base on the relative path
 	///
 	/// ```
@@ -138,25 +157,9 @@ impl<'a> IndexList<'a> {
 		self.indexes.get(index).copied()
 	}
 
-	/// The same as [HashSet::insert()](struct.HashSet.html#insert)
-	pub fn add(&mut self, index: &'a Index) -> bool {
-		self.indexes.insert(index)
-	}
-
-	/// The same as [HashSet::remove()](struct.HashSet.html#remove)
-	pub fn remove(&mut self, index: &'a Index) -> bool {
-		self.indexes.remove(index)
-	}
-
 	/// Get access to the internal's `HashSet`
 	pub fn inner(&self) -> &HashSet<&Index> {
 		&self.indexes
-	}
-
-	/// Create a union list of both lists
-	pub fn union(&self, with: &Self) -> Self {
-		let indexes = &self.indexes | &with.indexes;
-		Self::new(indexes)
 	}
 
 	/// Create iterator over Index's reference
@@ -202,7 +205,6 @@ pub struct IndexMapping<'a> {
 
 impl<'a> IndexMapping<'a> {
 	pub fn new(map: HashMap<&'a Index, Index>) -> Self {
-		debug!("Create IndexMapping with data: {:#?}", map);
 		Self { map }
 	}
 
@@ -211,21 +213,13 @@ impl<'a> IndexMapping<'a> {
 	}
 
 	pub fn apply_mapping<F: File>(&self, file: F) -> F {
-		let modify_if_exists = |acc: F, ref from| match self
-			.get(from)
-			.into_iter()
-			.inspect(|i| debug!("Inspecting: {} ⇒ {}", from, i))
-			.next()
-		{
+		let modify_if_exists = |acc: F, ref from| match self.get(from) {
 			Some(to) => acc.modify_relation(from, to),
 			None => acc,
 		};
 
-		let path = file.path().to_path_buf();
-
 		file.relation()
 			.into_iter()
-			.inspect(|i| debug!("{} ↺ {:?}", path.display(), i))
 			.map(Relation::index)
 			.fold(file, modify_if_exists)
 	}
@@ -243,7 +237,7 @@ impl<'a> FromIterator<(&'a Index, Index)> for IndexMapping<'a> {
 mod tests {
 	use super::*;
 
-	fn formatter(pid: Pid, filename: &str) -> String {
+	fn formatter(pid: &Pid, filename: &str) -> String {
 		format!("{}_{}", filename, pid.value())
 	}
 

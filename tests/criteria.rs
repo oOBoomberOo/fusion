@@ -1,4 +1,4 @@
-use fusion::prelude::Composite;
+use fusion::criteria::Composite;
 
 fn create_composite() -> Composite {
 	Composite::new()

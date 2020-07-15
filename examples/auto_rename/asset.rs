@@ -1,28 +1,81 @@
-use super::Error;
 use fusion::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::PathBuf;
 
 #[derive(Debug)]
-pub struct Asset {
-	pid: Pid,
-	path: PathBuf,
-	data: Data,
+pub enum Asset {
+	Json(Json),
+	Text(Text),
 }
 
 impl Asset {
-	pub fn new(path: impl Into<PathBuf>, pid: Pid) -> Result<Self, Error> {
+	pub fn new(path: impl Into<PathBuf>, pid: Pid) -> Result<Self, super::Error> {
 		let path = path.into();
-		let reader = File::open(&path)?;
-		let data: Data = serde_json::from_reader(reader)?;
-		let result = Self { pid, path, data };
+		let mut reader = File::open(&path)?;
+
+		let result = match path.extension().and_then(|os| os.to_str()) {
+			Some("json") => {
+				let data: Data = serde_json::from_reader(reader)?;
+				let json = Json { pid, data };
+				Asset::Json(json)
+			}
+			_ => {
+				let mut data = String::new();
+				reader.read_to_string(&mut data)?;
+				let text = Text { data };
+				Asset::Text(text)
+			}
+		};
+
 		Ok(result)
 	}
 }
 
 impl fusion::file::File for Asset {
-	type Error = Error;
+	fn relation(&self) -> Vec<Relation> {
+		match self {
+			Asset::Json(json) => json.relation(),
+			Asset::Text(text) => text.relation(),
+		}
+	}
+	fn data(self) -> Vec<u8> {
+		match self {
+			Asset::Json(json) => json.data(),
+			Asset::Text(text) => text.data(),
+		}
+	}
+	fn modify_relation(self, from: &Index, to: &Index) -> Self
+	where
+		Self: Sized,
+	{
+		match self {
+			Asset::Json(json) => Asset::Json(json.modify_relation(from, to)),
+			Asset::Text(text) => Asset::Text(text.modify_relation(from, to)),
+		}
+	}
+	fn merge(self, other: Self) -> Result<Self, Error>
+	where
+		Self: Sized,
+	{
+		use Asset::*;
+		let result = match (self, other) {
+			(Json(a), Json(b)) => Asset::Json(a.merge(b)?),
+			(Text(a), Text(b)) => Asset::Text(a.merge(b)?),
+			_ => unreachable!(),
+		};
+		Ok(result)
+	}
+}
+
+#[derive(Debug)]
+pub struct Json {
+	pid: Pid,
+	data: Data,
+}
+
+impl fusion::file::File for Json {
 	fn relation(&self) -> Vec<Relation> {
 		self.data
 			.import
@@ -32,10 +85,7 @@ impl fusion::file::File for Asset {
 			.map(Relation::new)
 			.map_or(vec![], |r| vec![r])
 	}
-	fn path(&self) -> &Path {
-		&self.path
-	}
-	fn data(&self) -> Vec<u8> {
+	fn data(self) -> Vec<u8> {
 		serde_json::to_vec(&self.data).unwrap_or_default()
 	}
 	fn modify_relation(mut self, _from: &Index, to: &Index) -> Self
@@ -45,14 +95,13 @@ impl fusion::file::File for Asset {
 		self.data.import = Some(from_index(to));
 		self
 	}
-	fn merge(self, other: Self) -> Result<Self, Self::Error>
+	fn merge(self, other: Self) -> Result<Self, Error>
 	where
 		Self: Sized,
 	{
 		let data = self.data.merge(other.data);
-		let path = other.path;
 		let pid = other.pid;
-		let result = Self { data, path, pid };
+		let result = Self { data, pid };
 		Ok(result)
 	}
 }
@@ -85,4 +134,31 @@ fn from_index(value: &Index) -> String {
 		.to_str()
 		.map(|v| v.to_string())
 		.unwrap_or_default()
+}
+
+#[derive(Debug)]
+pub struct Text {
+	data: String,
+}
+
+impl fusion::prelude::File for Text {
+	fn relation(&self) -> Vec<Relation> {
+		vec![]
+	}
+	fn data(self) -> Vec<u8> {
+		self.data.as_bytes().to_vec()
+	}
+	fn modify_relation(self, _from: &Index, _to: &Index) -> Self
+	where
+		Self: Sized,
+	{
+		self
+	}
+	fn merge(self, other: Self) -> Result<Self, Error>
+	where
+		Self: Sized,
+	{
+		let data = self.data + &other.data;
+		Ok(Self { data })
+	}
 }
