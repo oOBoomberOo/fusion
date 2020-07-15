@@ -1,0 +1,4 @@
+{
+	"import": "data/foo",
+	"data": [1000]
+}

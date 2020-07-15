@@ -1,44 +1,19 @@
-use super::prelude::{File, Index, Pid};
-use std::path::{Path, PathBuf};
+use super::prelude::{File, Index, IndexMapping, Pid, Relation};
 use log::*;
+use std::path::{Path, PathBuf};
 
+/// Exporter handle the renaming, merging and replacing process of the output project.
 pub trait Exporter {
 	type Error: From<std::io::Error>;
-	type Item: File;
 
 	fn root(&self) -> &Path;
 
-	/// Add Index to the project
-	#[allow(unused_variables)]
-	fn add(&self, file: Self::Item, index: &Index) -> Result<Vec<u8>, Self::Error> {
-		let path = file.path();
-		let contents = std::fs::read(path)?;
-		Ok(contents)
-	}
-
-	/// Add Renamed Index to the project
+	/// This `Pid` will be use for creating `Index` and differentiate it from other Project.
 	///
-	/// Rename index will have a Pid suffix of the project it came from when export.
-	#[allow(unused_variables)]
-	fn rename(&self, file: Self::Item, index: &Index) -> Result<Vec<u8>, Self::Error> {
-		let path = file.path();
-		let contents = std::fs::read(path)?;
-		Ok(contents)
-	}
+	/// It **must** be different from all other projects!
+	fn pid(&self) -> Pid;
 
-	/// Replace the current Index
-	#[allow(unused_variables)]
-	fn replace(&self, file: Self::Item, index: &Index) -> Result<Vec<u8>, Self::Error> {
-		let path = file.path();
-		let contents = std::fs::read(path)?;
-		Ok(contents)
-	}
-
-	/// Merge Index
-	#[allow(unused_variables)]
-	fn merge(&self, file: Self::Item, index: &Index) -> Result<Vec<u8>, Self::Error>;
-
-	fn rename_format(pid: Pid, filename: &str) -> String {
+	fn formatter(pid: Pid, filename: &str) -> String {
 		format!("{}_{}", filename, pid.value())
 	}
 }
@@ -56,38 +31,20 @@ pub trait ExporterExt: Exporter {
 	}
 
 	/// Add Index to the project
-	fn add_ext(&self, file: Self::Item, index: &Index) -> Result<(), Self::Error> {
-		let path = self.path(index);
-		info!("Add {} to path {}", index, path.display());
-		let contents = self.add(file, index)?;
-		self.write(path, contents)
+	fn add<F: File>(&self, file: F, index: &Index) -> Result<(), Self::Error> {
+		todo!()
 	}
 
 	/// Add Renamed Index to the project
 	///
 	/// Rename index will have a Pid suffix of the project it came from when export.
-	fn rename_ext(&self, file: Self::Item, index: &Index) -> Result<(), Self::Error> {
-		let name = index.rename(Self::rename_format)?;
-		let path = self.path(&name);
-		info!("Rename {} to path {}", index, path.display());
-		let contents = self.rename(file, index)?;
-		self.write(path, contents)
-	}
-
-	/// Replace the current Index
-	fn replace_ext(&self, file: Self::Item, index: &Index) -> Result<(), Self::Error> {
-		let path = self.path(index);
-		info!("Replace {} to path {}", index, path.display());
-		let contents = self.replace(file, index)?;
-		self.write(path, contents)
+	fn rename<F: File>(&self, file: F, index: &Index) -> Result<(), Self::Error> {
+		todo!()
 	}
 
 	/// Merge Index
-	fn merge_ext(&self, file: Self::Item, index: &Index) -> Result<(), Self::Error> {
-		let path = self.path(index);
-		info!("Merge {} to path {}", index, path.display());
-		let contents = self.merge(file, index)?;
-		self.write(path, contents)
+	fn merge<F: File>(&self, file: F, index: &Index) -> Result<(), Self::Error> {
+		todo!()
 	}
 }
 
