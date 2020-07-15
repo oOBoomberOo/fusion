@@ -64,13 +64,15 @@ where
 		let mapping = self.mapping()?;
 
 		for (index, strategy) in self.indexes() {
-			let eindex = exporter.get(index);
-			if let Some(file) = exporter.file(&eindex) {
+			let output_path = exporter.path(index);
+			let already_exists = output_path.is_file();
+
+			if let Some(file) = exporter.file(&index) {
 				let file = mapping.apply_mapping(file);
 				match strategy {
-					Strategy::Replace => exporter.add(file, index)?,
-					Strategy::Merge => exporter.merge(file, index)?,
-					Strategy::Rename => exporter.rename(file, index)?,
+					Strategy::Merge if already_exists => exporter.merge(file, index)?,
+					Strategy::Rename if already_exists => exporter.rename(file, index)?,
+					_ => exporter.add(file, index)?,
 				}
 			}
 		}
