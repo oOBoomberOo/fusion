@@ -244,7 +244,7 @@ mod tests {
 	use super::*;
 
 	fn formatter(pid: Pid, filename: &str) -> String {
-		format!("{}_{}", filename, pid)
+		format!("{}_{}", filename, pid.value())
 	}
 
 	#[test]
