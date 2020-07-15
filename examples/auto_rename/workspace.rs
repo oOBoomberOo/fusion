@@ -1,8 +1,8 @@
 use super::asset::Asset;
 use super::project::Project;
 use anyhow::Result;
-use fusion::prelude::Pid;
-use fusion::prelude::*;
+use superfusion::prelude::Pid;
+use superfusion::prelude::*;
 use glob::Pattern;
 use lazy_static::lazy_static;
 use std::path::{Path, PathBuf};
@@ -43,7 +43,7 @@ fn create_project((i, path): (usize, PathBuf)) -> Project {
 	Project::new(path, pid)
 }
 
-impl fusion::workspace::Workspace for Workspace {
+impl superfusion::workspace::Workspace for Workspace {
 	type Project = Project;
 	type File = Asset;
 

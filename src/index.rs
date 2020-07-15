@@ -30,7 +30,7 @@ impl Index {
 	/// Compare **only** the `path` component of this struct
 	///
 	/// ```
-	/// # use fusion::prelude::{Index, Pid};
+	/// # use superfusion::prelude::{Index, Pid};
 	/// let foo = Index::new(Pid::new(0), "./path/to/index");
 	/// let bar = Index::new(Pid::new(1), "./path/to/index");
 	/// assert!(foo.is_similar(&bar));
@@ -113,15 +113,17 @@ impl<'a> IndexList<'a> {
 	/// Get index loosely base on the relative path similar to [IndexList::get()](#method.get) but the result index **must** not contain the same Pid as the given index.
 	///
 	/// ```
-	/// # use fusion::prelude::{IndexList, Index, Pid};
+	/// # use superfusion::prelude::{IndexList, Index, Pid};
+	/// # use std::collections::HashSet;
 	/// let alpha = Pid::new(0);
 	/// let beta = Pid::new(1);
 	///
 	/// let foo = Index::new(alpha, "example/path");
 	/// let bar = Index::new(beta, "example/path");
 	///
-	/// let mut list = IndexList::default();
-	/// list.add(&foo);
+	/// let mut list = HashSet::new();
+	/// list.insert(&foo);
+	/// let list = IndexList::new(list);
 	///
 	/// assert_eq!(list.get_different_pid(&foo), None);
 	/// assert_eq!(list.get_different_pid(&bar), Some(&Index::new(alpha, "example/path")));
@@ -134,15 +136,17 @@ impl<'a> IndexList<'a> {
 	/// Get index loosely base on the relative path
 	///
 	/// ```
-	/// # use fusion::prelude::{IndexList, Index, Pid};
+	/// # use superfusion::prelude::{IndexList, Index, Pid};
+	/// # use std::collections::HashSet;
 	/// let alpha = Pid::new(0);
 	/// let beta = Pid::new(1);
 	///
 	/// let foo = Index::new(alpha, "example/path");
 	/// let bar = Index::new(beta, "example/path");
 	///
-	/// let mut list = IndexList::default();
-	/// list.add(&foo);
+	/// let mut list = HashSet::new();
+	/// list.insert(&foo);
+	/// let list = IndexList::new(list);
 	///
 	/// assert_eq!(list.get(&bar), Some(&Index::new(alpha, "example/path")));
 	/// ```

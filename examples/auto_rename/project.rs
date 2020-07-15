@@ -1,4 +1,4 @@
-use fusion::prelude::{Index, IndexList, Pid};
+use superfusion::prelude::{Index, IndexList, Pid};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -29,7 +29,7 @@ impl Project {
 	}
 }
 
-impl fusion::project::Project for Project {
+impl superfusion::project::Project for Project {
 	fn root(&self) -> &Path {
 		&self.root
 	}

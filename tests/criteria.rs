@@ -1,4 +1,4 @@
-use fusion::criteria::Composite;
+use superfusion::criteria::Composite;
 
 fn create_composite() -> Composite {
 	Composite::new()

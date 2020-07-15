@@ -1,7 +1,7 @@
 use super::project::Project;
 use super::Workspace;
 use colored::*;
-use fusion::prelude::{Index, Logger, Pid, Project as _, Workspace as _};
+use superfusion::prelude::{Index, Logger, Pid, Project as _, Workspace as _};
 use log::*;
 use std::collections::HashMap;
 use std::path::PathBuf;

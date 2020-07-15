@@ -10,7 +10,7 @@ pub type Criteria = Box<dyn Fn(&Path) -> bool>;
 /// This is useful for declaring a format that your project can take but it is not necessary to implement.
 ///
 /// ```
-/// # use fusion::criteria::Composite;
+/// # use superfusion::criteria::Composite;
 /// let composite = Composite::new()
 ///     .with(|path| path.ends_with("test.txt"));
 ///
@@ -34,7 +34,7 @@ impl Composite {
 
 	/// Insert a criteria into this composite
 	/// ```
-	/// # use fusion::criteria::Composite;
+	/// # use superfusion::criteria::Composite;
 	/// let composite = Composite::new()
 	///     .with(|path| path.ends_with("txt"))
 	///     .with(|path| path.is_file());

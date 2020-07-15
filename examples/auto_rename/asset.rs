@@ -1,4 +1,4 @@
-use fusion::prelude::*;
+use superfusion::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
@@ -33,7 +33,7 @@ impl Asset {
 	}
 }
 
-impl fusion::file::File for Asset {
+impl superfusion::file::File for Asset {
 	fn relation(&self) -> Vec<Relation> {
 		match self {
 			Asset::Json(json) => json.relation(),
@@ -75,7 +75,7 @@ pub struct Json {
 	data: Data,
 }
 
-impl fusion::file::File for Json {
+impl superfusion::file::File for Json {
 	fn relation(&self) -> Vec<Relation> {
 		self.data
 			.import
@@ -141,7 +141,7 @@ pub struct Text {
 	data: String,
 }
 
-impl fusion::prelude::File for Text {
+impl superfusion::prelude::File for Text {
 	fn relation(&self) -> Vec<Relation> {
 		vec![]
 	}

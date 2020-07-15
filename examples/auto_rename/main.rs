@@ -1,5 +1,5 @@
 use anyhow::Result;
-use fusion::prelude::Workspace as _;
+use superfusion::prelude::Workspace as _;
 use log::LevelFilter;
 use std::io::Write;
 use std::path::Path;
