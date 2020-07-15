@@ -13,7 +13,7 @@ pub trait File {
 	/// Return the file's data.
 	///
 	/// Note that the file's data *should* already be stored inside this struct and this method simply return that data.  
-	/// This is to allow transforming relationship via [modify_relation()](#modify_relation) method without rewriting the file.
+	/// This is to allow transforming relationship via [modify_relation()](#method.modify_relation) method without rewriting the file.
 	fn data(self) -> Vec<u8>;
 
 	/// Get call when an Index that have relation to this file get renamed.  

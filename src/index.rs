@@ -52,7 +52,7 @@ impl Index {
 	/// # Error
 	/// This function can fail in the following errors:
 	/// - Logical parent does not exists. (Path like `./` does not have logical parent)
-	/// - Unable to get file stem of this path. (Check [Path::file_stem()](/std/path/struct.Path.html#file_stem))
+	/// - Unable to get file stem of this path. (Check [std::path::Path::file_stem()])
 	pub fn rename<F>(&self, format: F) -> Result<Self, Error>
 	where
 		F: Fn(&Pid, &str) -> String,
@@ -110,7 +110,7 @@ impl<'a> IndexList<'a> {
 		Self { indexes }
 	}
 
-	/// Get index loosely base on the relative path similar to [IndexList::get()](#get) but the result index **must** not containt he same Pid as the given index.
+	/// Get index loosely base on the relative path similar to [IndexList::get()](#method.get) but the result index **must** not contain the same Pid as the given index.
 	///
 	/// ```
 	/// # use fusion::prelude::{IndexList, Index, Pid};
