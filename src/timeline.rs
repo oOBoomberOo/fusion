@@ -1,6 +1,6 @@
 use super::fs;
 use super::prelude::{Error, File, Index, IndexMapping, Pid, Strategy, Workspace};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::path::{Path, PathBuf};
 
 pub struct Timeline<'a, W> {
@@ -53,19 +53,18 @@ where
 			.map(|(&pid, path)| (pid, path.to_path_buf()))
 			.chain(output_project)
 			.collect();
-		Exporter::new(root, projects)
+		Exporter::new(root, oid, projects)
 	}
 
 	pub fn export_to<P>(self, path: P) -> Result<(), Error>
 	where
 		P: Into<PathBuf>,
 	{
-		let exporter = self.exporter(path);
-		let eid = self.output_id();
+		let mut exporter = self.exporter(path);
 		let mapping = self.mapping()?;
 
 		for (index, strategy) in self.indexes() {
-			let eindex = index.with_pid(eid);
+			let eindex = exporter.get(index);
 			if let Some(file) = exporter.file(&eindex) {
 				let file = mapping.apply_mapping(file);
 				match strategy {
@@ -86,7 +85,9 @@ where
 
 pub struct Exporter<W> {
 	root: PathBuf,
+	output_id: Pid,
 	projects: HashMap<Pid, PathBuf>,
+	touched: HashSet<Index>,
 	_workspace: std::marker::PhantomData<W>,
 }
 
@@ -94,12 +95,23 @@ impl<W> Exporter<W>
 where
 	W: Workspace,
 {
-	pub fn new(root: impl Into<PathBuf>, projects: HashMap<Pid, PathBuf>) -> Self {
+	pub fn new(root: impl Into<PathBuf>, output_id: Pid, projects: HashMap<Pid, PathBuf>) -> Self {
 		let root = root.into();
 		Self {
 			root,
+			output_id,
 			projects,
+			touched: HashSet::new(),
 			_workspace: std::marker::PhantomData,
+		}
+	}
+
+	pub fn get(&self, index: &Index) -> Index {
+		let eindex = index.with_pid(self.output_id);
+		if let Some(touched) = self.touched.get(&eindex) {
+			touched.clone()
+		} else {
+			index.clone()
 		}
 	}
 
@@ -114,28 +126,31 @@ where
 		index.prefix(&self.root)
 	}
 
-	fn write(&self, index: &Index, content: Vec<u8>) -> Result<(), Error> {
+	fn write(&mut self, index: &Index, content: Vec<u8>) -> Result<(), Error> {
 		let path = self.path(index);
 		fs::prepare_parent(&path)?;
 		fs::write(path, content)?;
+
+		let index = index.with_pid(self.output_id);
+		self.touched.insert(index);
 		Ok(())
 	}
 
 	/// Add Index to the project
-	fn add(&self, file: W::File, index: &Index) -> Result<(), Error> {
+	fn add(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
 		let content = file.data();
 		self.write(index, content)
 	}
 
 	/// Rename Index and then add it to the project
-	fn rename(&self, file: W::File, index: &Index) -> Result<(), Error> {
+	fn rename(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
 		let renamed = index.rename(W::formatter)?;
 		let content = file.data();
 		self.write(&renamed, content)
 	}
 
 	/// Merge Index
-	fn merge(&self, file: W::File, index: &Index) -> Result<(), Error> {
+	fn merge(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
 		let file = match self.file(index) {
 			Some(conflict) => conflict.merge(file)?,
 			None => file,
