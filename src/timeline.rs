@@ -1,6 +1,6 @@
 use super::fs;
 use super::prelude::{Error, File, Index, IndexMapping, Pid, Strategy, Workspace};
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub struct Timeline<'a, W> {
@@ -60,7 +60,7 @@ where
 	where
 		P: Into<PathBuf>,
 	{
-		let mut exporter = self.exporter(path);
+		let exporter = self.exporter(path);
 		let mapping = self.mapping()?;
 
 		for (index, strategy) in self.indexes() {
@@ -89,7 +89,6 @@ pub struct Exporter<W> {
 	root: PathBuf,
 	output_id: Pid,
 	projects: HashMap<Pid, PathBuf>,
-	touched: HashSet<Index>,
 	_workspace: std::marker::PhantomData<W>,
 }
 
@@ -103,17 +102,7 @@ where
 			root,
 			output_id,
 			projects,
-			touched: HashSet::new(),
 			_workspace: std::marker::PhantomData,
-		}
-	}
-
-	pub fn get(&self, index: &Index) -> Index {
-		let eindex = index.with_pid(self.output_id);
-		if let Some(touched) = self.touched.get(&eindex) {
-			touched.clone()
-		} else {
-			index.clone()
 		}
 	}
 
@@ -128,32 +117,30 @@ where
 		index.prefix(&self.root)
 	}
 
-	fn write(&mut self, index: &Index, content: Vec<u8>) -> Result<(), Error> {
+	fn write(&self, index: &Index, content: Vec<u8>) -> Result<(), Error> {
 		let path = self.path(index);
 		fs::prepare_parent(&path)?;
 		fs::write(path, content)?;
-
-		let index = index.with_pid(self.output_id);
-		self.touched.insert(index);
 		Ok(())
 	}
 
 	/// Add Index to the project
-	fn add(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
+	fn add(&self, file: W::File, index: &Index) -> Result<(), Error> {
 		let content = file.data();
 		self.write(index, content)
 	}
 
 	/// Rename Index and then add it to the project
-	fn rename(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
+	fn rename(&self, file: W::File, index: &Index) -> Result<(), Error> {
 		let renamed = index.rename(W::formatter)?;
 		let content = file.data();
 		self.write(&renamed, content)
 	}
 
 	/// Merge Index
-	fn merge(&mut self, file: W::File, index: &Index) -> Result<(), Error> {
-		let file = match self.file(index) {
+	fn merge(&self, file: W::File, index: &Index) -> Result<(), Error> {
+		let output_index = index.with_pid(self.output_id);
+		let file = match self.file(&output_index) {
 			Some(conflict) => conflict.merge(file)?,
 			None => file,
 		};
