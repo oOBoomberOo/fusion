@@ -33,6 +33,9 @@ pub trait File {
 	}
 }
 
+/// Describing a relationship to another file.
+///
+/// This should only be generated inside [relation()](trait.File.html#method.relation).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Relation(pub Index);
 

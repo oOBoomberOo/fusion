@@ -3,6 +3,7 @@ use super::prelude::{Error, File, Index, IndexMapping, Pid, Strategy, Workspace}
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// A handle containing information describing how to merge the projects together.
 pub struct Timeline<'a, W> {
 	strategy: HashMap<&'a Index, Strategy>,
 	projects: HashMap<Pid, &'a Path>,
@@ -13,7 +14,10 @@ impl<'a, W> Timeline<'a, W>
 where
 	W: Workspace,
 {
-	pub fn new(strategy: HashMap<&'a Index, Strategy>, projects: HashMap<Pid, &'a Path>) -> Self {
+	pub(crate) fn new(
+		strategy: HashMap<&'a Index, Strategy>,
+		projects: HashMap<Pid, &'a Path>,
+	) -> Self {
 		Self {
 			strategy,
 			projects,
@@ -21,11 +25,12 @@ where
 		}
 	}
 
+	/// Output Project's [Pid](../project/struct.Pid.html)
 	pub fn output_id(&self) -> Pid {
 		Pid::new(self.projects.len())
 	}
 
-	pub fn mapping(&self) -> Result<IndexMapping, Error> {
+	fn mapping(&self) -> Result<IndexMapping, Error> {
 		let mut map = HashMap::new();
 		let oid = self.output_id();
 
@@ -42,7 +47,7 @@ where
 		Ok(IndexMapping::new(map))
 	}
 
-	pub fn exporter<P: Into<PathBuf>>(&self, root: P) -> Exporter<W> {
+	fn exporter<P: Into<PathBuf>>(&self, root: P) -> Exporter<W> {
 		let oid = self.output_id();
 		let root = root.into();
 		let output_project = std::iter::once((oid, root.clone()));
@@ -56,6 +61,7 @@ where
 		Exporter::new(root, oid, projects)
 	}
 
+	/// Save the merged project into the given `path`
 	pub fn export_to<P>(self, path: P) -> Result<(), Error>
 	where
 		P: Into<PathBuf>,
@@ -64,15 +70,12 @@ where
 		let mapping = self.mapping()?;
 
 		for (index, strategy) in self.indexes() {
-			let output_path = exporter.path(index);
-			let already_exists = output_path.is_file();
-
 			if let Some(file) = exporter.file(&index) {
 				let file = mapping.apply_mapping(file);
 				match strategy {
-					Strategy::Merge if already_exists => exporter.merge(file, index)?,
-					Strategy::Rename if already_exists => exporter.rename(file, index)?,
-					_ => exporter.add(file, index)?,
+					Strategy::Merge => exporter.merge(file, index)?,
+					Strategy::Rename => exporter.rename(file, index)?,
+					Strategy::Replace => exporter.add(file, index)?,
 				}
 			}
 		}
@@ -80,12 +83,15 @@ where
 		Ok(())
 	}
 
-	pub fn indexes(&self) -> impl Iterator<Item = (&Index, Strategy)> {
+	fn indexes(&self) -> impl Iterator<Item = (&Index, Strategy)> {
 		self.strategy.iter().map(|(&a, &b)| (a, b))
 	}
 }
 
-pub struct Exporter<W> {
+/// A struct that handle communication with the filesystem.
+///
+/// This is use to actually write the in-memory data into the filesystem.
+struct Exporter<W> {
 	root: PathBuf,
 	output_id: Pid,
 	projects: HashMap<Pid, PathBuf>,
@@ -96,7 +102,7 @@ impl<W> Exporter<W>
 where
 	W: Workspace,
 {
-	pub fn new(root: impl Into<PathBuf>, output_id: Pid, projects: HashMap<Pid, PathBuf>) -> Self {
+	fn new(root: impl Into<PathBuf>, output_id: Pid, projects: HashMap<Pid, PathBuf>) -> Self {
 		let root = root.into();
 		Self {
 			root,
@@ -106,7 +112,7 @@ where
 		}
 	}
 
-	pub fn file(&self, index: &Index) -> Option<W::File> {
+	fn file(&self, index: &Index) -> Option<W::File> {
 		let pid = index.pid();
 		let root = self.projects.get(pid)?;
 		let path = index.prefix(root);

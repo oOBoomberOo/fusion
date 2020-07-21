@@ -23,23 +23,23 @@ impl fmt::Display for Pid {
 }
 
 /// Conflict handling strategy.
-///
-/// - `Strategy::Merge` will cause [File::merge](superfusion::file::File::merge) method to be call.
-/// - `Strategy::Rename` will cause the file to be rename to some unique name and [File::modify_relation](superfusion::file::File::modify_relation) method to be call on related files.
-/// - `Strategy::Replace` will cause the file to override the conflicted file entirely.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Strategy {
+	/// This strategy will cause [File::merge](../file/trait.File.html#method.merge) method to be call.
 	Merge,
+	/// This strategy will cause the file to be rename to some unique name and [File::modify_relation](../file/trait.File.html#method.modify_relation) method to be call on related files.
 	Rename,
+	/// This strategy will cause the file to override the conflicted file entirely.
 	Replace,
 }
 
-/// Project trait representing a single project directory.
+/// Project interface representing a single project directory.
 pub trait Project {
 	/// Path to the root of the project directory
 	fn root(&self) -> &Path;
+	/// Pid of this project
 	fn pid(&self) -> Pid;
 
-	/// Return [IndexList](superfusion::index::IndexList) of all indexes inside this project.
+	/// Return [IndexList](../index/struct.IndexList.html) of all indexes inside this project.
 	fn indexes(&self) -> IndexList;
 }

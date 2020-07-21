@@ -4,6 +4,7 @@ use thiserror::Error;
 /// Internal Error
 #[derive(Debug, Error)]
 pub enum Error {
+	/// Failed to write file to the given path
 	#[error("Unable to write data to {path}")]
 	Write {
 		path: PathBuf,
@@ -11,21 +12,21 @@ pub enum Error {
 		source: std::io::Error,
 	},
 
+	/// Failed to create parent directory of the given path
 	#[error("Unable to get the parent of this path {path}")]
 	Parent { path: PathBuf },
 
+	/// Failed to get filename of the given path
 	#[error("Unable to get filename of this path {path}")]
 	NoFileName { path: PathBuf },
 
+	/// Failed to create directories leading to the given path
 	#[error("Unable to create directory from this path {path}")]
 	CreateDirAll {
 		path: PathBuf,
 		#[source]
 		source: std::io::Error,
 	},
-
-	#[error(transparent)]
-	Custom(Box<dyn std::error::Error + Sync + Send>),
 }
 
 impl Error {
@@ -49,10 +50,5 @@ impl Error {
 			path: path.into(),
 			source,
 		}
-	}
-
-	pub fn custom(error: impl std::error::Error + Sync + Send + 'static) -> Self {
-		let boxed_error = Box::new(error);
-		Error::Custom(boxed_error)
 	}
 }

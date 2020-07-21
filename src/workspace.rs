@@ -1,7 +1,8 @@
-use super::prelude::{File, Index, IndexList, Logger, LoggerExt, Pid, Project, Strategy, Timeline};
+use super::prelude::{File, Index, IndexList, Pid, Project, Strategy, Timeline};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Workspace interface
 pub trait Workspace {
 	type Project: Project;
 	type File: File;
@@ -20,7 +21,7 @@ pub trait Workspace {
 		format!("{}_{}", filename, pid.value())
 	}
 
-	fn resolve<L: Logger>(&self, logger: &mut L) -> Timeline<Self>
+	fn resolve(&self) -> Timeline<Self>
 	where
 		Self: Sized,
 	{
@@ -29,7 +30,9 @@ pub trait Workspace {
 
 		let strategy = indexes(self)
 			.map(|index| {
-				let strategy = index_strategy(index, &preview, self, logger);
+				let strategy = preview
+					.get_different_pid(index)
+					.map_or(Strategy::Replace, |_| self.strategy(index));
 				(index, strategy)
 			})
 			.collect();
@@ -38,45 +41,22 @@ pub trait Workspace {
 	}
 }
 
-fn index_strategy<W, L>(
-	index: &Index,
-	preview: &IndexList,
-	workspace: &W,
-	logger: &mut L,
-) -> Strategy
-where
-	W: Workspace,
-	L: Logger,
-{
-	match preview.get_different_pid(index) {
-		Some(conflict) => {
-			let result = workspace.strategy(index);
-			logger.log_conflicted(result, conflict, index);
-			result
-		}
-		None => {
-			logger.add(index);
-			Strategy::Replace
-		}
-	}
-}
-
 /// Get an iterator over Workspace's projects
-pub fn projects<W: Workspace>(workspace: &W) -> impl Iterator<Item = &W::Project> {
+fn projects<W: Workspace>(workspace: &W) -> impl Iterator<Item = &W::Project> {
 	workspace.projects().iter()
 }
 
 /// Get an iterator over every indexes in all projects
-pub fn indexes<W: Workspace>(workspace: &W) -> impl Iterator<Item = &Index> {
+fn indexes<W: Workspace>(workspace: &W) -> impl Iterator<Item = &Index> {
 	projects(workspace).flat_map(Project::indexes)
 }
 
 /// Get HashMap of 'Pid → Project's path'
-pub fn project_paths<W: Workspace>(workspace: &W) -> HashMap<Pid, &Path> {
+fn project_paths<W: Workspace>(workspace: &W) -> HashMap<Pid, &Path> {
 	projects(workspace).map(|p| (p.pid(), p.root())).collect()
 }
 
 /// Get IndexList of all indexes
-pub fn preview<W: Workspace>(workspace: &W) -> IndexList {
+fn preview<W: Workspace>(workspace: &W) -> IndexList {
 	indexes(workspace).collect()
 }

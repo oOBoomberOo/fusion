@@ -1,6 +1,6 @@
-use superfusion::prelude::{Index, IndexList, Pid};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use superfusion::prelude::{Index, IndexList, Pid};
 use walkdir::WalkDir;
 
 pub struct Project {

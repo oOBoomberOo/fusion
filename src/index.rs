@@ -70,12 +70,12 @@ impl Index {
 		Ok(result)
 	}
 
-	/// Transforming the Index into full path again
+	/// Transforming the Index into full path again by prefixing the relative path with the given `root`
 	pub fn prefix(&self, root: &Path) -> PathBuf {
 		root.join(&self.path)
 	}
 
-	/// Change Pid of the Index
+	/// Return the same Index with different Pid
 	pub fn with_pid(&self, pid: Pid) -> Self {
 		Self::new(pid, &self.path)
 	}
@@ -199,9 +199,7 @@ impl<'a> FromIterator<&'a Index> for IndexList<'a> {
 /// List of mapping from one Index to another
 ///
 /// This is used for each file to lookup the Index's path that it referenced to.
-/// Usually the Index's path can be compute from the given Index itself but do to 'renaming strategy' feature, there is a need for this lookup.
-///
-/// You also cannot modify any value after this struct has been created to prevent any misuse of it.
+/// Usually the Index's path can be compute from the given Index itself but due to 'renaming strategy' feature, there is a need for this lookup.
 #[derive(Debug, Default, Clone)]
 pub struct IndexMapping<'a> {
 	map: HashMap<&'a Index, Index>,
@@ -216,6 +214,7 @@ impl<'a> IndexMapping<'a> {
 		self.map.get(index)
 	}
 
+	/// Apply mapping to the given `file`'s relationship
 	pub fn apply_mapping<F: File>(&self, file: F) -> F {
 		let modify_if_exists = |acc: F, ref from| match self.get(from) {
 			Some(to) => acc.modify_relation(from, to),

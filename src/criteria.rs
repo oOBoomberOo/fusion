@@ -1,8 +1,9 @@
-//! Define a set of criteria required for the directory to be considered a 'project'
-
 use std::fmt;
 use std::path::Path;
 
+/// A single 'criteria' is a function that take Path reference and return some boolean.
+///
+/// The input path will be the root of the project directory.
 pub type Criteria = Box<dyn Fn(&Path) -> bool>;
 
 /// A composition of multiple criteria. All criteria must be satisfied to pass the test.

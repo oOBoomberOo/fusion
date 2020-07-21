@@ -1,11 +1,11 @@
 use super::asset::Asset;
 use super::project::Project;
 use anyhow::Result;
-use superfusion::prelude::Pid;
-use superfusion::prelude::*;
 use glob::Pattern;
 use lazy_static::lazy_static;
 use std::path::{Path, PathBuf};
+use superfusion::prelude::Pid;
+use superfusion::prelude::*;
 
 lazy_static! {
 	static ref PACK_META: Pattern = Pattern::new("pack.mcmeta").unwrap();

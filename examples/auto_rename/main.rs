@@ -1,34 +1,18 @@
 use anyhow::Result;
-use superfusion::prelude::Workspace as _;
-use log::LevelFilter;
-use std::io::Write;
 use std::path::Path;
+use superfusion::prelude::Workspace as _;
 use thiserror::Error;
 
 mod asset;
-mod logger;
 mod project;
 mod workspace;
 
-use logger::MyLogger;
 use workspace::Workspace;
 
-fn logger() {
-	let mut builder = pretty_env_logger::formatted_builder();
-	builder
-		.format(|buf, record| writeln!(buf, "{}", record.args()))
-		.format_indent(Some(2))
-		.filter(None, LevelFilter::Trace)
-		.init();
-}
-
 fn main() -> Result<()> {
-	logger();
-
 	clear_output("./output")?;
-	let workspace = Workspace::from_directory("./projects")?;
-	let mut logger = MyLogger::from_workspace(&workspace);
-	let timeline = workspace.resolve(&mut logger);
+	let workspace = Workspace::from_directory("./examples/auto_rename/projects")?;
+	let timeline = workspace.resolve();
 	timeline.export_to("./output")?;
 	Ok(())
 }
