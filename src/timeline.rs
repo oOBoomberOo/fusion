@@ -1,5 +1,7 @@
 use super::fs;
 use super::prelude::{Error, File, Index, IndexMapping, Pid, Strategy, Workspace};
+use log::*;
+use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -18,6 +20,11 @@ where
 		strategy: HashMap<&'a Index, Strategy>,
 		projects: HashMap<Pid, &'a Path>,
 	) -> Self {
+		debug!(
+			"Create new timeline with {} projects and {} strategies",
+			projects.len(),
+			strategy.len()
+		);
 		Self {
 			strategy,
 			projects,
@@ -28,6 +35,14 @@ where
 	/// Output Project's [Pid](../project/struct.Pid.html)
 	pub fn output_id(&self) -> Pid {
 		Pid::new(self.projects.len())
+	}
+
+	pub fn strategy(&self) -> Iter<&Index, Strategy> {
+		self.strategy.iter()
+	}
+
+	pub fn projects(&self) -> Iter<Pid, &Path> {
+		self.projects.iter()
 	}
 
 	fn mapping(&self) -> Result<IndexMapping, Error> {
@@ -47,18 +62,17 @@ where
 		Ok(IndexMapping::new(map))
 	}
 
-	fn exporter<P: Into<PathBuf>>(&self, root: P) -> Exporter<W> {
+	fn exporter<P: Into<PathBuf>>(&self, root: P, mapping: IndexMapping<'a>) -> Exporter<'a, W> {
 		let oid = self.output_id();
 		let root = root.into();
 		let output_project = std::iter::once((oid, root.clone()));
 
 		let projects = self
-			.projects
-			.iter()
+			.projects()
 			.map(|(&pid, path)| (pid, path.to_path_buf()))
 			.chain(output_project)
 			.collect();
-		Exporter::new(root, oid, projects)
+		Exporter::new(root, oid, projects, mapping)
 	}
 
 	/// Save the merged project into the given `path`
@@ -66,16 +80,16 @@ where
 	where
 		P: Into<PathBuf>,
 	{
-		let exporter = self.exporter(path);
 		let mapping = self.mapping()?;
+		let exporter = self.exporter(path, mapping);
 
 		for (index, strategy) in self.indexes() {
+			debug!("Export {} with {:?}", index, strategy);
+
 			if let Some(file) = exporter.file(&index) {
-				let file = mapping.apply_mapping(file);
 				match strategy {
 					Strategy::Merge => exporter.merge(file, index)?,
-					Strategy::Rename => exporter.rename(file, index)?,
-					Strategy::Replace => exporter.add(file, index)?,
+					Strategy::Rename | Strategy::Replace => exporter.write(file, index)?,
 				}
 			}
 		}
@@ -84,30 +98,44 @@ where
 	}
 
 	fn indexes(&self) -> impl Iterator<Item = (&Index, Strategy)> {
-		self.strategy.iter().map(|(&a, &b)| (a, b))
+		self.strategy().map(|(&a, &b)| (a, b))
 	}
 }
 
 /// A struct that handle communication with the filesystem.
 ///
 /// This is use to actually write the in-memory data into the filesystem.
-struct Exporter<W> {
+struct Exporter<'a, W> {
 	root: PathBuf,
 	output_id: Pid,
 	projects: HashMap<Pid, PathBuf>,
+	mapping: IndexMapping<'a>,
 	_workspace: std::marker::PhantomData<W>,
 }
 
-impl<W> Exporter<W>
+impl<'a, W> Exporter<'a, W>
 where
 	W: Workspace,
 {
-	fn new(root: impl Into<PathBuf>, output_id: Pid, projects: HashMap<Pid, PathBuf>) -> Self {
+	fn new(
+		root: impl Into<PathBuf>,
+		output_id: Pid,
+		projects: HashMap<Pid, PathBuf>,
+		mapping: IndexMapping<'a>,
+	) -> Self {
 		let root = root.into();
+
+		debug!(
+			"Create exporter to {} with pid {}",
+			root.display(),
+			output_id
+		);
+
 		Self {
 			root,
 			output_id,
 			projects,
+			mapping,
 			_workspace: std::marker::PhantomData,
 		}
 	}
@@ -116,6 +144,11 @@ where
 		let pid = index.pid();
 		let root = self.projects.get(pid)?;
 		let path = index.prefix(root);
+		debug!(
+			"Looking up file with index {} at path {}",
+			index,
+			path.display()
+		);
 		W::file(&path, *pid)
 	}
 
@@ -123,34 +156,33 @@ where
 		index.prefix(&self.root)
 	}
 
-	fn write(&self, index: &Index, content: Vec<u8>) -> Result<(), Error> {
-		let path = self.path(index);
+	fn index(&'a self, index: &'a Index) -> Result<&'a Index, Error> {
+		self.mapping
+			.get(index)
+			.ok_or_else(|| Error::unknown_index(index.clone()))
+	}
+
+	fn write(&self, file: W::File, index: &Index) -> Result<(), Error> {
+		let output_index = self.index(index)?;
+		let path = self.path(output_index);
+
+		let file = self.mapping.apply_mapping(file);
+		let content = file.data();
+
+		debug!("Write file content from {} to {}", index, path.display());
 		fs::prepare_parent(&path)?;
 		fs::write(path, content)?;
 		Ok(())
 	}
 
-	/// Add Index to the project
-	fn add(&self, file: W::File, index: &Index) -> Result<(), Error> {
-		let content = file.data();
-		self.write(index, content)
-	}
-
-	/// Rename Index and then add it to the project
-	fn rename(&self, file: W::File, index: &Index) -> Result<(), Error> {
-		let renamed = index.rename(W::formatter)?;
-		let content = file.data();
-		self.write(&renamed, content)
-	}
-
 	/// Merge Index
 	fn merge(&self, file: W::File, index: &Index) -> Result<(), Error> {
 		let output_index = index.with_pid(self.output_id);
+		debug!("Try to merge file's content from {} with {}", index, output_index);
 		let file = match self.file(&output_index) {
 			Some(conflict) => conflict.merge(file)?,
 			None => file,
 		};
-		let content = file.data();
-		self.write(index, content)
+		self.write(file, index)
 	}
 }

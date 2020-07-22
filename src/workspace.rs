@@ -1,4 +1,5 @@
 use super::prelude::{File, Index, IndexList, Pid, Project, Strategy, Timeline};
+use log::*;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -18,7 +19,12 @@ pub trait Workspace {
 	fn file(path: &Path, pid: Pid) -> Option<Self::File>;
 
 	fn formatter(pid: &Pid, filename: &str) -> String {
-		format!("{}_{}", filename, pid.value())
+		let result = format!("{}_{}", filename, pid.value());
+		debug!(
+			"Formatted filename {} and pid {} into {}",
+			filename, pid, result
+		);
+		result
 	}
 
 	fn resolve(&self) -> Timeline<Self>
@@ -26,13 +32,27 @@ pub trait Workspace {
 		Self: Sized,
 	{
 		let preview = preview(self);
+		debug!("Generated index preview");
 		let projects = project_paths(self);
+		debug!("Generated mapping between Pid and Project Path");
 
 		let strategy = indexes(self)
 			.map(|index| {
-				let strategy = preview
-					.get_different_pid(index)
-					.map_or(Strategy::Replace, |_| self.strategy(index));
+				let strategy = match preview.get_different_pid(index) {
+					Some(conflict) => {
+						let strategy = self.strategy(index);
+						debug!(
+							"Found conflicting index at {}, choose {:?} for index: {}",
+							conflict, strategy, index
+						);
+						strategy
+					}
+					None => {
+						debug!("No conflicting index found, choose {:?}", Strategy::Replace);
+						Strategy::Replace
+					}
+				};
+
 				(index, strategy)
 			})
 			.collect();

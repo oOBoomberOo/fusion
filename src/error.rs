@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use thiserror::Error;
+use super::index::Index;
 
 /// Internal Error
 #[derive(Debug, Error)]
@@ -28,11 +29,18 @@ pub enum Error {
 		source: std::io::Error,
 	},
 
+	#[error("Unknown index: {index}")]
+	UnknownIndex { index: Index },
+
 	#[error(transparent)]
 	Custom(Box<dyn std::error::Error + Sync + Send>)
 }
 
 impl Error {
+	pub fn unknown_index(index: Index) -> Self {
+		Error::UnknownIndex { index }
+	}
+
 	pub fn write(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
 		Error::Write {
 			path: path.into(),
