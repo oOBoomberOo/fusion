@@ -85,11 +85,12 @@ where
 
 		for (index, strategy) in self.indexes() {
 			debug!("Export {} with {:?}", index, strategy);
+			let already_exists = exporter.exist_in_output(index);
 
 			if let Some(file) = exporter.file(&index) {
 				match strategy {
-					Strategy::Merge => exporter.merge(file, index)?,
-					Strategy::Rename | Strategy::Replace => exporter.write(file, index)?,
+					Strategy::Merge if already_exists => exporter.merge(file, index)?,
+					_ => exporter.write(file, index)?,
 				}
 			}
 		}
@@ -184,5 +185,14 @@ where
 			None => file,
 		};
 		self.write(file, index)
+	}
+
+	fn exist(&self, index: &Index) -> bool {
+		self.path(index).exists()
+	}
+
+	fn exist_in_output(&self, index: &Index) -> bool {
+		let output_index = index.with_pid(self.output_id);
+		self.exist(&output_index)
 	}
 }
