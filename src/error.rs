@@ -27,6 +27,9 @@ pub enum Error {
 		#[source]
 		source: std::io::Error,
 	},
+
+	#[error(transparent)]
+	Custom(Box<dyn std::error::Error + Sync + Send>)
 }
 
 impl Error {
@@ -50,5 +53,10 @@ impl Error {
 			path: path.into(),
 			source,
 		}
+	}
+
+	pub fn custom(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+		let error = Box::new(error);
+		Error::Custom(error)
 	}
 }
