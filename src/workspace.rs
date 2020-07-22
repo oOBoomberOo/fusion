@@ -48,7 +48,7 @@ pub trait Workspace {
 						strategy
 					}
 					None => {
-						debug!("No conflicting index found, choose {:?}", Strategy::Replace);
+						debug!("No conflicting index found, choose {:?} for index: {}", Strategy::Replace, index);
 						Strategy::Replace
 					}
 				};
