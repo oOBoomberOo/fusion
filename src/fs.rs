@@ -24,7 +24,9 @@ pub fn create_dir_all<P: AsRef<Path>>(path: P) -> Result<()> {
 
 pub fn prepare_parent(path: &Path) -> Result<()> {
 	if let Some(parent) = path.parent() {
-		create_dir_all(parent)?;
+		if !parent.exists() {
+			create_dir_all(parent)?;
+		}
 	}
 
 	Ok(())
